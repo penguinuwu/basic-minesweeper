@@ -95,10 +95,10 @@
         }),
         height: 4,
         width: 4,
-        answer: [["1", "x", "2", "x"], 
-                 ["1", "1", "3", "2"], 
-                 ["0", "0", "1", "x"], 
-                 ["0", "0", "1", "1"]]
+        answer: [[1,  "x",  2,  "x"], 
+                 [1,  1,    3,  2  ], 
+                 [0,  0,    1,  "x"], 
+                 [0,  0,    1,  1  ]]
       }
       function initBoard() {
         return boardObject.encode.unknown.repeat(boardObject.height * boardObject.width)
@@ -131,6 +131,17 @@
       function isInBounds(i, j) {
         return 0 <= i && i < boardObject.height && 0 <= j && j < boardObject.width
       }
+      function isElementOf(a, item) {
+        for (let i of a)
+          if (i[0] === item[0] && i[1] === item[1])
+            return false
+        return true
+      }
+      function arrayUnion(a, b) {
+        for (let i of b)
+          if (isElementOf(a, i))
+            a.push(i)
+      }
       function reveal(boardString, i, j) {
         let [isInt, r, c] = strToInt(i, j)
         if (!isInt || !isInBounds(r, c))
@@ -144,40 +155,42 @@
 
         // reveal all trivial squares
         let queue = [[r, c]]
+        let checked = []
         while (queue.length) {
           [r, c] = queue.pop()
 
           // reveal clicked square
-          // TODO: FIX UNSAFE PARSE INT
-          a[r][c] = parseInt(boardObject.answer[r][c])
+          a[r][c] = boardObject.answer[r][c]
 
           let bombCount = a[r][c]
           let surround = []
 
           for (let dy=-1; dy<=1; dy++) {
             for (let dx=-1; dx<=1; dx++) {
-              if ((dx===0 && dy===0) || !isInBounds(r+dy, c+dx))
+              if ((dx===0 && dy===0) || 
+                  !isInBounds(r+dy, c+dx) ||
+                  !isElementOf(checked, [r, c]))
                 continue
 
-              // console.log(a[r+dy][c+dx] + " " + r+dy + " " + c+dx)
-              if (a[r+dy][c+dx] === boardObject.encode.unknown ||
-                  a[r+dy][c+dx] === "0") {
-                surround.push([r+dy, c+dx])
-                // console.log("push")
-              } else if (a[r+dy][c+dx] === boardObject.encode.flag) {
+              if (a[r+dy][c+dx] === boardObject.encode.flag) {
                 bombCount--
+              } else if (a[r+dy][c+dx] === boardObject.encode.unknown ||
+                         a[r+dy][c+dx] === 0) {
+                surround.push([r+dy, c+dx])
               }
-
             }
           }
+          // DEBUG: infinite loop
+          // if (queue.length > 5)
+          //   break
 
-          console.log(surround)
-          console.log("b " + bombCount)
-          if (bombCount === 0) {
-            // https://stackoverflow.com/a/1374131
-            queue.push.apply(queue, surround)
-          }
-          console.log("q " + queue)
+          if (bombCount === 0)
+            arrayUnion(queue, surround)
+          // DEBUG: queue
+          // console.log("q")
+          // console.log(Array.from(queue))
+
+          checked.push([r, c])
         }
 
         return getBoardString(a)
