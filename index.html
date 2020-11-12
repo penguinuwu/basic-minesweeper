@@ -121,8 +121,11 @@
         }
         return a
       }
-      function strToInt(i, j) {
-        if (Number.isInteger(i) && Number.isInteger(j)) {
+      function isInteger(i) {
+        return /^-?\d+$/.test(i);
+      }
+      function strsToInt(i, j) {
+        if (isInteger(i) && isInteger(j)) {
           return [true, parseInt(i), parseInt(j)]
         } else {
           return [false, i, j]
@@ -143,7 +146,7 @@
             a.push(i)
       }
       function reveal(boardString, i, j) {
-        let [isInt, r, c] = strToInt(i, j)
+        let [isInt, r, c] = strsToInt(i, j)
         if (!isInt || !isInBounds(r, c))
           return boardString
 
@@ -250,8 +253,18 @@
                 s += this.board.a[i][j]
             return s
           },
-          strToInt: function(i, j) {
-            if (Number.isInteger(i) && Number.isInteger(j)) {
+          isInteger: function(i) {
+            return /^-?\d+$/.test(i);
+          },
+          strToInt: function(i) {
+            if (this.isInteger(i)) {
+              return [true, parseInt(i)]
+            } else {
+              return [false, i]
+            }
+          },
+          strsToInt: function(i, j) {
+            if (this.isInteger(i) && this.isInteger(j)) {
               return [true, parseInt(i), parseInt(j)]
             } else {
               return [false, i, j]
@@ -261,9 +274,8 @@
             return 0 <= i && i < this.board.height && 0 <= j && j < this.board.width;
           },
           flag: function(i, j) {
-            let [isInt, r, c] = this.strToInt(i, j)
-
-            if (!isInt || !this.isInBounds(r, c))
+            let [isInts, r, c] = this.strsToInt(i, j)
+            if (!isInts || !this.isInBounds(r, c))
               return
             
             if (this.board.a[r][c] === this.board.encode.flag) {
@@ -272,12 +284,34 @@
             } else if (this.board.a[r][c] === this.board.encode.unknown) {
               this.board.a[r][c] = this.board.encode.flag
               this.flags++
+            } else {
+              let [isInt, bombCount] = this.strToInt(this.board.a[r][c])
+              if (!isInt)
+                return
+
+              let surround = []
+              for (let dy=-1; dy<=1; dy++) {
+                for (let dx=-1; dx<=1; dx++) {
+                  if (dx===0 && dy===0 || !this.isInBounds(r+dy, c+dx))
+                    continue
+                  if (this.board.a[r+dy][c+dx] === boardObject.encode.flag) {
+                    bombCount--
+                  } else if (this.board.a[r+dy][c+dx] === boardObject.encode.unknown) {
+                    bombCount--
+                    surround.push([r+dy, c+dx])
+                  }
+                }
+              }
+
+              if (bombCount === 0)
+                for ([r, c] of surround)
+                  this.board.a[r][c] = this.board.encode.flag
             }
 
             this.setBoardArray(this.getBoardString())
           },
           reveal: function(i, j) {
-            let [isInt, r, c] = this.strToInt(i, j)
+            let [isInt, r, c] = this.strsToInt(i, j)
 
             if (!isInt || !this.isInBounds(r, c) || this.board.a[r][c] === this.board.encode.flag)
               return
