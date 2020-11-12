@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous"/>
+
+    <!-- Noto Sans Font -->
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap" rel="stylesheet">
+
+    <!-- Dev version Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <!-- Prd version Vue.js -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script> -->
+
+    <title>Minesweeper</title>
+    
+    <style>
+      body {
+        background: black;
+        color: white;
+        text-align: center;
+        font-size: 1rem;
+        font-family: 'Noto Sans', sans-serif;
+      }
+    </style>
+  </head>
+
+  
+  <body>
+    <div class="container-fluid">
+      <div id="game" class="row">
+        <div class="col-9">
+
+          <div class="btn-group-vertical">
+            <div v-for="(row, i) in board.a" class="btn-group">
+              <display
+                v-for="(block, j) in row" 
+                :reveal="reveal" 
+                :flag="flag" 
+                :i="i" 
+                :j="j" 
+                :block="block">
+              </display>
+            </div>
+          </div>
+
+          <p>debug</p>
+          <p v-html="board"></p>
+
+        </div>
+
+        <div class="col-3">
+          <p v-text=""></p>
+          <p v-text=""></p>
+          <p v-text=""></p>
+          <button type="button" class="btn btn-success" @click="restart">
+            Restart <i class="fas fa-cat"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- jQuery and Bootstrap Bundle (includes Popper) -->
+    <script 
+      src="https://code.jquery.com/jquery-3.5.1.slim.min.js" 
+      integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" 
+      crossorigin="anonymous">
+    </script>
+    <script 
+      src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" 
+      integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" 
+      crossorigin="anonymous">  
+    </script>
+
+    <script>
+      "use strict"
+
+      ////////////////////////////////////////
+      // this section should be server side
+      // hardcode for now
+      var boardObject = {
+        encode: Object.freeze({
+          "bomb": "x",
+          "flag": "!",
+          "unknown": "?"
+        }),
+        height: 4,
+        width: 4,
+        answer: [["1", "x", "2", "x"], 
+                 ["1", "1", "3", "2"], 
+                 ["0", "0", "1", "x"], 
+                 ["0", "0", "1", "1"]]
+      }
+      function initBoard() {
+        return boardObject.encode.unknown.repeat(boardObject.height * boardObject.width)
+      }
+      function getBoardString(boardArray) {
+        let s = ""
+        for (let i = 0; i < boardObject.height; i++)
+          for (let j = 0; j < boardObject.width; j++)
+            s += boardArray[i][j]
+        return s
+      }
+      function getBoardArray(boardString) {
+        let a = []
+        let c = 0
+        for (let i = 0; i < boardObject.height; i++) {
+          a.push([])
+          for (let j = 0; j < boardObject.width; j++) {
+            a[i].push(boardString[c++])
+          }
+        }
+        return a
+      }
+      function strToInt(i, j) {
+        if (Number.isInteger(i) && Number.isInteger(j)) {
+          return [true, parseInt(i), parseInt(j)]
+        } else {
+          return [false, i, j]
+        }
+      }
+      function isInBounds(i, j) {
+        return 0 <= i && i < boardObject.height && 0 <= j && j < boardObject.width
+      }
+      function reveal(boardString, i, j) {
+        let [isInt, r, c] = strToInt(i, j)
+        if (!isInt || !isInBounds(r, c))
+          return boardString
+
+        let a = getBoardArray(boardString)
+        // if clicked on flag, then do nothing
+        if (a[r][c] === boardObject.encode.flag)
+          return boardString
+
+
+        // reveal all trivial squares
+        let queue = [[r, c]]
+        while (queue.length) {
+          [r, c] = queue.pop()
+
+          // reveal clicked square
+          // TODO: FIX UNSAFE PARSE INT
+          a[r][c] = parseInt(boardObject.answer[r][c])
+
+          let bombCount = a[r][c]
+          let surround = []
+
+          for (let dy=-1; dy<=1; dy++) {
+            for (let dx=-1; dx<=1; dx++) {
+              if ((dx===0 && dy===0) || !isInBounds(r+dy, c+dx))
+                continue
+
+              // console.log(a[r+dy][c+dx] + " " + r+dy + " " + c+dx)
+              if (a[r+dy][c+dx] === boardObject.encode.unknown ||
+                  a[r+dy][c+dx] === "0") {
+                surround.push([r+dy, c+dx])
+                // console.log("push")
+              } else if (a[r+dy][c+dx] === boardObject.encode.flag) {
+                bombCount--
+              }
+
+            }
+          }
+
+          console.log(surround)
+          console.log("b " + bombCount)
+          if (bombCount === 0) {
+            // https://stackoverflow.com/a/1374131
+            queue.push.apply(queue, surround)
+          }
+          console.log("q " + queue)
+        }
+
+        return getBoardString(a)
+      }
+      ////////////////////////////////////////
+
+      Vue.component("display", {
+        props: ["reveal", "flag", "i", "j", "block"],
+        template: `<button type="button" class="btn btn-primary" ` + 
+                  `@click.left="reveal(i, j)" ` + 
+                  `@contextmenu.prevent="flag(i, j)" v-html="block"></button>`
+      })
+
+      var game = new Vue({
+        el: "#game",
+
+        data: {
+          gameOver: false,
+          bombs: 0,
+          flags: 0,
+          board: {
+            encode: {},
+            height: 0,
+            width: 0,
+            a: []
+          }
+        },
+
+        methods: {
+          restart: function() {
+            this.gameOver = false,
+            this.bombs = 0
+            this.flags = 0
+            // request to server
+            this.board.encode = JSON.parse(JSON.stringify(boardObject.encode))
+            this.board.height = boardObject.height
+            this.board.width = boardObject.width
+            this.setBoardArray(initBoard())
+          },
+          setBoardArray: function(boardString) {
+            let c = 0
+            this.board.a = []
+
+            for (let i = 0; i < this.board.height; i++) {
+              this.board.a.push([])
+              for (let j = 0; j < this.board.width; j++) {
+                if (boardString[c] === this.board.encode.bomb)
+                  this.gameOver = true
+                this.board.a[i].push(boardString[c++])
+              }
+            }
+          },
+          getBoardString: function() {
+            let s = ""
+            for (let i = 0; i < this.board.height; i++)
+              for (let j = 0; j < this.board.width; j++)
+                s += this.board.a[i][j]
+            return s
+          },
+          strToInt: function(i, j) {
+            if (Number.isInteger(i) && Number.isInteger(j)) {
+              return [true, parseInt(i), parseInt(j)]
+            } else {
+              return [false, i, j]
+            }
+          },
+          isInBounds(i, j) {
+            return 0 <= i && i < this.board.height && 0 <= j && j < this.board.width;
+          },
+          flag: function(i, j) {
+            let [isInt, r, c] = this.strToInt(i, j)
+
+            if (!isInt || !this.isInBounds(r, c))
+              return
+            
+            if (this.board.a[r][c] === this.board.encode.flag) {
+              this.board.a[r][c] = this.board.encode.unknown
+              this.flags--
+            } else if (this.board.a[r][c] === this.board.encode.unknown) {
+              this.board.a[r][c] = this.board.encode.flag
+              this.flags++
+            }
+
+            this.setBoardArray(this.getBoardString())
+          },
+          reveal: function(i, j) {
+            let [isInt, r, c] = this.strToInt(i, j)
+
+            if (!isInt || !this.isInBounds(r, c) || this.board.a[r][c] === this.board.encode.flag)
+              return
+
+            let s = this.getBoardString()
+
+            // request to server
+            let o = reveal(s, r, c)
+
+            this.setBoardArray(o)
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
