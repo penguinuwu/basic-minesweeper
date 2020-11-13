@@ -39,6 +39,15 @@
       <div id="game" class="row">
         <div class="col-9">
 
+          <!-- <span class="fa-stack fa-3x">
+            <i class="far fa-square fa-stack-2x"></i>
+            <strong class="fa-stack-1x">1</strong>
+          </span> -->
+
+          <!-- <p v-html="display(0)"
+          >
+          </p> -->
+
           <div class="btn-group-vertical">
             <div v-for="(row, i) in board.a" class="btn-group">
               <display
@@ -47,20 +56,18 @@
                 :flag="flag" 
                 :i="i" 
                 :j="j" 
-                :block="block">
+                :block="display(block)">
               </display>
             </div>
           </div>
 
-          <p>debug</p>
-          <p v-html="board"></p>
+          <!-- <p>debug</p>
+          <p v-html="board"></p> -->
 
         </div>
 
         <div class="col-3">
-          <p v-text=""></p>
-          <p v-text=""></p>
-          <p v-text=""></p>
+          <p v-text="flags"></p>
           <button type="button" class="btn btn-success" @click="restart">
             Restart <i class="fas fa-cat"></i>
           </button>
@@ -88,6 +95,21 @@
       // this section should be server side
       // hardcode for now
       var boardObject = {
+        display: Object.freeze({
+          "0": `<strong class="fa-stack-1x">0</strong>`,
+          "1": `<strong class="fa-stack-1x">1</strong>`,
+          "2": `<strong class="fa-stack-1x">2</strong>`,
+          "3": `<strong class="fa-stack-1x">3</strong>`,
+          "4": `<strong class="fa-stack-1x">4</strong>`,
+          "5": `<strong class="fa-stack-1x">5</strong>`,
+          "6": `<strong class="fa-stack-1x">6</strong>`,
+          "7": `<strong class="fa-stack-1x">7</strong>`,
+          "8": `<strong class="fa-stack-1x">8</strong>`,
+          "9": `<strong class="fa-stack-1x">9</strong>`,
+          "x": `<i class="fas fa-bomb fa-stack-1x fa-inverse"></i>`,
+          "!": `<i class="fas fa-flag fa-stack-1x fa-inverse"></i>`,
+          "?": ``
+        }),
         encode: Object.freeze({
           "bomb": "x",
           "flag": "!",
@@ -215,6 +237,7 @@
           bombs: 0,
           flags: 0,
           board: {
+            display: {},
             encode: {},
             height: 0,
             width: 0,
@@ -228,6 +251,7 @@
             this.bombs = 0
             this.flags = 0
             // request to server
+            this.board.display = JSON.parse(JSON.stringify(boardObject.display))
             this.board.encode = JSON.parse(JSON.stringify(boardObject.encode))
             this.board.height = boardObject.height
             this.board.width = boardObject.width
@@ -322,6 +346,12 @@
             let o = reveal(s, r, c)
 
             this.setBoardArray(o)
+          },
+          display: function(block) {
+            return `<span class="fa-stack fa-3x">` +
+                     `<i class="far fa-square fa-stack-2x"></i>` +
+                     this.board.display[block] +
+                   `</span>`
           }
         }
       })
