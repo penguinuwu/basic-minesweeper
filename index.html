@@ -26,7 +26,6 @@
       body {
         background: black;
         color: white;
-        text-align: center;
         font-size: 1rem;
         font-family: 'Noto Sans', sans-serif;
       }
@@ -35,8 +34,12 @@
 
   
   <body>
+    <nav class="navbar navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">Pog</a>
+    </nav>
+
     <div class="container-fluid">
-      <div id="game" class="row">
+      <div id="game" class="row mt-3">
         <div class="col-9">
 
           <!-- <span class="fa-stack fa-3x">
@@ -48,16 +51,50 @@
           >
           </p> -->
 
-          <div class="btn-group-vertical">
-            <div v-for="(row, i) in board.a" class="btn-group">
-              <display
-                v-for="(block, j) in row" 
-                :reveal="reveal" 
-                :flag="flag" 
-                :i="i" 
-                :j="j" 
-                :block="display(block)">
-              </display>
+          <div class="card text-white bg-dark h-100">
+            <h5 class="card-header">Minesweeper</h5>
+            <div class="card-body text-center">
+
+              <template v-if="board.height === 0 || board.width === 0">
+                <restartbutton
+                  :restart="restart"
+                  :text="'Start Game!'">
+                </restartbutton>
+              </template>
+              
+              <template v-else>
+                <template v-if="gameStatus === 1">
+                  <restartbutton
+                    :restart="restart"
+                    :text="'You Won!'">
+                  </restartbutton>
+                </template>
+
+                <template v-if="gameStatus === 2">
+                  <restartbutton
+                    :restart="restart"
+                    :text="'You Lost!'">
+                  </restartbutton>
+                </template>
+                
+                <div class="btn-group-vertical">
+                  <div 
+                    v-for="(row, i) in board.a" class="btn-group"
+                    :key="i">
+                    <display
+                      v-for="(block, j) in row" 
+                      :key="j"
+                      :reveal="reveal" 
+                      :flag="flag" 
+                      :i="i" 
+                      :j="j" 
+                      :block="display(block)"
+                      :isdisabled="gameStatus !== 0">
+                    </display>
+                  </div>
+                </div>
+              </template>
+
             </div>
           </div>
 
@@ -67,10 +104,18 @@
         </div>
 
         <div class="col-3">
-          <p v-text="flags"></p>
-          <button type="button" class="btn btn-success" @click="restart">
-            Restart <i class="fas fa-cat"></i>
-          </button>
+          <div class="card text-white bg-dark h-100">
+            <h5 class="card-header">Stats</h5>
+            <div class="card-body">
+              <p><i class="fas fa-bomb"></i> <span v-html="bombs-flags"></span></p>
+              <div class="text-center">
+                <button type="button" class="btn btn-success" @click="restart">
+                  Restart <i class="fas fa-cat"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -94,57 +139,110 @@
       ////////////////////////////////////////
       // this section should be server side
       // hardcode for now
-      var boardObject = {
+      var bo = {
         display: Object.freeze({
-          "0": `<strong class="fa-stack-1x">0</strong>`,
-          "1": `<strong class="fa-stack-1x">1</strong>`,
-          "2": `<strong class="fa-stack-1x">2</strong>`,
-          "3": `<strong class="fa-stack-1x">3</strong>`,
-          "4": `<strong class="fa-stack-1x">4</strong>`,
-          "5": `<strong class="fa-stack-1x">5</strong>`,
-          "6": `<strong class="fa-stack-1x">6</strong>`,
-          "7": `<strong class="fa-stack-1x">7</strong>`,
-          "8": `<strong class="fa-stack-1x">8</strong>`,
-          "9": `<strong class="fa-stack-1x">9</strong>`,
-          "x": `<i class="fas fa-bomb fa-stack-1x fa-inverse"></i>`,
-          "!": `<i class="fas fa-flag fa-stack-1x fa-inverse"></i>`,
-          "?": ``
+          "0": `<strong class="fa-stack-2x">0</strong>`,
+          "1": `<strong class="fa-stack-2x">1</strong>`,
+          "2": `<strong class="fa-stack-2x">2</strong>`,
+          "3": `<strong class="fa-stack-2x">3</strong>`,
+          "4": `<strong class="fa-stack-2x">4</strong>`,
+          "5": `<strong class="fa-stack-2x">5</strong>`,
+          "6": `<strong class="fa-stack-2x">6</strong>`,
+          "7": `<strong class="fa-stack-2x">7</strong>`,
+          "8": `<strong class="fa-stack-2x">8</strong>`,
+          "9": `<strong class="fa-stack-2x">9</strong>`,
+          "x": `<i class="fas fa-bomb fa-stack-2x fa-inverse"></i>`,
+          "!": `<i class="fas fa-flag fa-stack-2x fa-inverse"></i>`,
+          "?": `<i class="far fa-square fa-stack-2x"></i>`
         }),
         encode: Object.freeze({
           "bomb": "x",
           "flag": "!",
           "unknown": "?"
         }),
-        height: 4,
-        width: 4,
-        answer: [[1,  "x",  2,  "x"], 
-                 [1,  1,    3,  2  ], 
-                 [0,  0,    1,  "x"], 
-                 [0,  0,    1,  1  ]]
+        // set these in generateBoardArray for now
+        bombs: 0,
+        bombLocs: [],
+        height: 0,
+        width: 0,
+        // answer: [[1,  "x",  2,  "x"], 
+        //          [1,  1,    3,  2  ], 
+        //          [0,  0,    1,  "x"], 
+        //          [0,  0,    1,  1  ]]
+        answer: []
       }
       function initBoard() {
-        return boardObject.encode.unknown.repeat(boardObject.height * boardObject.width)
+        return bo.encode.unknown.repeat(bo.height * bo.width)
+      }
+      function generateBoardArray() {
+        // uhhhhhhhh TODO clean up this
+        bo.bombs = 10
+        bo.bombLocs = []
+        bo.height = 5
+        bo.width = 10
+        bo.answer = []
+
+        // return if invalid amount of bombs
+        if (bo.height*bo.width <= bo.bombs)
+          return
+
+        // generate bombs
+        for (let i=0; i<bo.bombs; i++) {
+          let r, c
+          // until new bomb location is found
+          do {
+            r = Math.floor(Math.random() * bo.height)
+            c = Math.floor(Math.random() * bo.width)
+          } while (isElementOf([r, c], bo.bombLocs))
+          bo.bombLocs.push([r, c])
+        }
+
+        // init board with unknowns
+        // https://stackoverflow.com/a/38213067
+        bo.answer = [...Array(bo.height)].map(() => Array(bo.width).fill(bo.encode.unknown))
+
+        // place bombs
+        for (let i=0; i<bo.bombs; i++)
+          bo.answer[bo.bombLocs[i][0]][bo.bombLocs[i][1]] = bo.encode.bomb
+
+        // calculate numbers
+        for (let r=0; r<bo.height; r++) {
+          for (let c=0; c<bo.width; c++) {
+            if (bo.answer[r][c] !== bo.encode.unknown)
+              continue
+            let bombCount = 0
+            for (let dy=-1; dy<=1; dy++) {
+              for (let dx=-1; dx<=1; dx++) {
+                if ((dx===0 && dy===0) || !isInBounds(r+dy, c+dx))
+                  continue
+
+                if (bo.answer[r+dy][c+dx] === bo.encode.bomb)
+                  bombCount++
+              }
+            }
+            bo.answer[r][c] = bombCount
+          }
+        }
       }
       function getBoardString(boardArray) {
         let s = ""
-        for (let i = 0; i < boardObject.height; i++)
-          for (let j = 0; j < boardObject.width; j++)
+        for (let i = 0; i < bo.height; i++)
+          for (let j = 0; j < bo.width; j++)
             s += boardArray[i][j]
         return s
       }
       function getBoardArray(boardString) {
         let a = []
         let c = 0
-        for (let i = 0; i < boardObject.height; i++) {
+        for (let i = 0; i < bo.height; i++) {
           a.push([])
-          for (let j = 0; j < boardObject.width; j++) {
+          for (let j = 0; j < bo.width; j++)
             a[i].push(boardString[c++])
-          }
         }
         return a
       }
       function isInteger(i) {
-        return /^-?\d+$/.test(i);
+        return /^-?\d+$/.test(i)
       }
       function strsToInt(i, j) {
         if (isInteger(i) && isInteger(j)) {
@@ -154,17 +252,17 @@
         }
       }
       function isInBounds(i, j) {
-        return 0 <= i && i < boardObject.height && 0 <= j && j < boardObject.width
+        return 0 <= i && i < bo.height && 0 <= j && j < bo.width
       }
-      function isElementOf(a, item) {
+      function isElementOf(item, a) {
         for (let i of a)
           if (i[0] === item[0] && i[1] === item[1])
-            return false
-        return true
+            return true
+        return false
       }
       function arrayUnion(a, b) {
         for (let i of b)
-          if (isElementOf(a, i))
+          if (!isElementOf(i, a))
             a.push(i)
       }
       function reveal(boardString, i, j) {
@@ -174,7 +272,7 @@
 
         let a = getBoardArray(boardString)
         // if clicked on flag, then do nothing
-        if (a[r][c] === boardObject.encode.flag)
+        if (a[r][c] === bo.encode.flag)
           return boardString
 
 
@@ -185,7 +283,7 @@
           [r, c] = queue.pop()
 
           // reveal clicked square
-          a[r][c] = boardObject.answer[r][c]
+          a[r][c] = bo.answer[r][c]
 
           let bombCount = a[r][c]
           let surround = []
@@ -194,12 +292,13 @@
             for (let dx=-1; dx<=1; dx++) {
               if ((dx===0 && dy===0) || 
                   !isInBounds(r+dy, c+dx) ||
-                  !isElementOf(checked, [r, c]))
+                  isElementOf([r, c], checked))
                 continue
 
-              if (a[r+dy][c+dx] === boardObject.encode.flag) {
+              if (a[r+dy][c+dx] === bo.encode.flag ||
+                  a[r+dy][c+dx] === bo.encode.bomb) {
                 bombCount--
-              } else if (a[r+dy][c+dx] === boardObject.encode.unknown ||
+              } else if (a[r+dy][c+dx] === bo.encode.unknown ||
                          a[r+dy][c+dx] === 0) {
                 surround.push([r+dy, c+dx])
               }
@@ -220,20 +319,71 @@
 
         return getBoardString(a)
       }
+      function checkStatus(boardString) {
+        // count bombs and explosions
+        let bombCount = 0
+        let explodeCount = 0
+        for (let i=0; i<boardString.length; i++) {
+          if (boardString[i] === bo.encode.bomb)
+            explodeCount++
+          if (boardString[i] === bo.encode.flag)
+            bombCount++
+        }
+        // 1 life for testing only
+        if (explodeCount >= 1)
+          return 2
+
+        // continue gamin
+        if (bombCount !== bo.bombs)
+          return 0
+
+        // check bomb locations
+        for (let i=0; i<bo.bombs; i++) {
+          let r = bo.bombLocs[i][0] * bo.width
+          let c = bo.bombLocs[i][1]
+          if (r+c > boardString.length || 
+              boardString[r+c] !== bo.encode.flag)
+            return 0
+        }
+
+        // win
+        return 1
+      }
       ////////////////////////////////////////
 
       Vue.component("display", {
-        props: ["reveal", "flag", "i", "j", "block"],
+        props: {
+          reveal: Function,
+          flag: Function,
+          i: Number,
+          j: Number,
+          block: String,
+          isdisabled: Boolean
+        },
         template: `<button type="button" class="btn btn-primary" ` + 
-                  `@click.left="reveal(i, j)" ` + 
-                  `@contextmenu.prevent="flag(i, j)" v-html="block"></button>`
+                  `@click.left="reveal(i, j)" @contextmenu.prevent="flag(i, j)" ` +
+                  `v-html="block" :disabled="isdisabled"></button>`
+      })
+
+      Vue.component("restartbutton", {
+        props: {
+          restart: Function,
+          text: String
+        },
+        template: `<p><button type="button" class="btn btn-success btn-lg" ` +
+                  `@click="restart">{{ text }} <i class="fas fa-cat"></i></button></p>`
       })
 
       var game = new Vue({
         el: "#game",
 
         data: {
-          gameOver: false,
+          // -1: not began
+          //  0: gamin
+          //  1: won
+          //  2: lost
+          gameStatus: -1,
+          exploded: 0,
           bombs: 0,
           flags: 0,
           board: {
@@ -247,25 +397,28 @@
 
         methods: {
           restart: function() {
-            this.gameOver = false,
-            this.bombs = 0
+            this.gameStatus = 0
+            this.exploded = 0
             this.flags = 0
             // request to server
-            this.board.display = JSON.parse(JSON.stringify(boardObject.display))
-            this.board.encode = JSON.parse(JSON.stringify(boardObject.encode))
-            this.board.height = boardObject.height
-            this.board.width = boardObject.width
+            generateBoardArray()
+            this.board.display = JSON.parse(JSON.stringify(bo.display))
+            this.board.encode = JSON.parse(JSON.stringify(bo.encode))
+            this.bombs = bo.bombs
+            this.board.height = bo.height
+            this.board.width = bo.width
             this.setBoardArray(initBoard())
           },
           setBoardArray: function(boardString) {
             let c = 0
             this.board.a = []
+            this.exploded = 0
 
             for (let i = 0; i < this.board.height; i++) {
               this.board.a.push([])
               for (let j = 0; j < this.board.width; j++) {
                 if (boardString[c] === this.board.encode.bomb)
-                  this.gameOver = true
+                  this.exploded++
                 this.board.a[i].push(boardString[c++])
               }
             }
@@ -294,7 +447,7 @@
               return [false, i, j]
             }
           },
-          isInBounds(i, j) {
+          isInBounds: function(i, j) {
             return 0 <= i && i < this.board.height && 0 <= j && j < this.board.width;
           },
           flag: function(i, j) {
@@ -303,36 +456,52 @@
               return
             
             if (this.board.a[r][c] === this.board.encode.flag) {
+              // remove flag
               this.board.a[r][c] = this.board.encode.unknown
               this.flags--
             } else if (this.board.a[r][c] === this.board.encode.unknown) {
+              // flag unknown block
               this.board.a[r][c] = this.board.encode.flag
               this.flags++
             } else {
+              // try to flag multiple blocks
               let [isInt, bombCount] = this.strToInt(this.board.a[r][c])
               if (!isInt)
                 return
 
               let surround = []
+              // check 9 surrounding directions
               for (let dy=-1; dy<=1; dy++) {
                 for (let dx=-1; dx<=1; dx++) {
+                  // ignore current block and out of bounds
                   if (dx===0 && dy===0 || !this.isInBounds(r+dy, c+dx))
                     continue
-                  if (this.board.a[r+dy][c+dx] === boardObject.encode.flag) {
+
+                  if (this.board.a[r+dy][c+dx] === bo.encode.flag ||
+                      this.board.a[r+dy][c+dx] === bo.encode.bomb) {
                     bombCount--
-                  } else if (this.board.a[r+dy][c+dx] === boardObject.encode.unknown) {
+                  } else if (this.board.a[r+dy][c+dx] === bo.encode.unknown) {
                     bombCount--
                     surround.push([r+dy, c+dx])
                   }
                 }
               }
 
-              if (bombCount === 0)
-                for ([r, c] of surround)
+              // if all bombs are accounted for, then place trivial flags
+              if (bombCount === 0) {
+                for ([r, c] of surround) {
                   this.board.a[r][c] = this.board.encode.flag
+                  this.flags++
+                }
+              }
             }
 
             this.setBoardArray(this.getBoardString())
+            this.checkStatus()
+          },
+          checkStatus: function() {
+            // request to server
+            this.gameStatus = checkStatus(this.getBoardString())
           },
           reveal: function(i, j) {
             let [isInt, r, c] = this.strsToInt(i, j)
@@ -346,10 +515,10 @@
             let o = reveal(s, r, c)
 
             this.setBoardArray(o)
+            this.checkStatus()
           },
           display: function(block) {
-            return `<span class="fa-stack fa-3x">` +
-                     `<i class="far fa-square fa-stack-2x"></i>` +
+            return `<span class="fa-stack fa-1x">` +
                      this.board.display[block] +
                    `</span>`
           }
